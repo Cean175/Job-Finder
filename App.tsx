@@ -1,18 +1,28 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './HomeScreen';
 import SavedJobsScreen from './SavedJobsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  SavedJobs: undefined; 
+  SavedJobs: { savedJobs: string[]; jobs: Job[] };
 };
+
+export interface Job {
+  id: string;
+  title: string;
+  company: string;
+  salary: string;
+  jobType?: string;
+  workModel?: string;
+  seniority?: string;
+  description?: string;
+}
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-
-export default function App() {
+const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Home">
@@ -21,5 +31,6 @@ export default function App() {
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+};
 
+export default App;
