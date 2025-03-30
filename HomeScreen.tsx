@@ -188,6 +188,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     );
   }
 
+  
+
   if (jobs.length === 0) {
     return (
       <View style={styles.emptyContainer}>

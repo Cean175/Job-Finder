@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Appearance, ColorSchemeName } from 'react-native';
+import { Appearance } from 'react-native';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -56,19 +56,12 @@ type ThemeContextType = {
   isDark: boolean;
 };
 
-const ThemeContext = createContext<ThemeContextType>({
-  theme: { mode: 'light', colors: lightColors },
-  toggleTheme: () => {},
-  isDark: false
-});
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    const colorScheme = Appearance.getColorScheme();
-    return {
-      mode: colorScheme || 'light',
-      colors: colorScheme === 'dark' ? darkColors : lightColors
-    };
+    const colorScheme = Appearance.getColorScheme() ?? 'light';
+    return { mode: colorScheme, colors: colorScheme === 'dark' ? darkColors : lightColors };
   });
 
   const toggleTheme = () => {
@@ -79,24 +72,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    const subscription = Appearance.addChangeListener((preferences: { colorScheme: ColorSchemeName }) => {
-      const newMode = preferences.colorScheme || 'light';
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setTheme({
-        mode: newMode,
-        colors: newMode === 'dark' ? darkColors : lightColors
+        mode: colorScheme ?? 'light',
+        colors: colorScheme === 'dark' ? darkColors : lightColors
       });
     });
     return () => subscription.remove();
   }, []);
 
-  const contextValue = {
-    theme,
-    toggleTheme,
-    isDark: theme.mode === 'dark'
-  };
-
   return (
-    <ThemeContext.Provider value={contextValue}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme.mode === 'dark' }}>
       {children}
     </ThemeContext.Provider>
   );
