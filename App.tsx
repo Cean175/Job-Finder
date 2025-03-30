@@ -1,36 +1,56 @@
 import React from 'react';
+import { ThemeProvider, useTheme } from './ThemeContext'; 
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './HomeScreen';
 import SavedJobsScreen from './SavedJobsScreen';
-
-export type RootStackParamList = {
-  Home: undefined;
-  SavedJobs: { savedJobs: string[]; jobs: Job[] };
-};
-
-export interface Job {
-  id: string;
-  title: string;
-  company: string;
-  salary: string;
-  jobType?: string;
-  workModel?: string;
-  seniority?: string;
-  description?: string;
-}
+import { RootStackParamList } from './types';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+const AppNavigator = () => {
+  const { theme } = useTheme(); 
+  
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.colors.primary,
+        },
+        headerTintColor: theme.colors.buttonText,
+        headerTitleStyle: {
+          color: theme.colors.text,
+        },
+        cardStyle: {
+          backgroundColor: theme.colors.background,
+        },
+      }}
+    >
+      <Stack.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ title: 'Job Search' }}
+      />
+      <Stack.Screen 
+        name="SavedJobs" 
+        component={SavedJobsScreen} 
+        options={{ title: 'Saved Jobs' }}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const App = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="SavedJobs" component={SavedJobsScreen} />
-      </Stack.Navigator>
+      <ThemeProvider>
+        <AppNavigator />
+      </ThemeProvider>
     </NavigationContainer>
+
+    
   );
 };
+
 
 export default App;

@@ -9,12 +9,14 @@ import {
   StyleSheet,
   Alert,
   Modal,
+  Button,
   RefreshControl
 } from 'react-native';
 import axios from 'axios';
 import uuid from 'react-native-uuid';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, Job } from './App';
+import { RootStackParamList, Job } from './types';
+import { useTheme } from './ThemeContext';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -25,18 +27,16 @@ interface HomeScreenProps {
 const API_URL = 'https://empllo.com/api/v1';
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  // State for jobs and UI
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [search, setSearch] = useState('');
-  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const { theme, toggleTheme } = useTheme(); 
   const [application, setApplication] = useState({
     name: '',
     email: '',
@@ -44,7 +44,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     coverLetter: ''
   });
 
- 
   const fetchJobs = async () => {
     try {
       setLoading(true);
@@ -53,9 +52,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       
       let jobData = response.data;
       
-      
       if (Array.isArray(jobData)) {
-        
       } else if (jobData?.jobs && Array.isArray(jobData.jobs)) {
         jobData = jobData.jobs;
       } else if (jobData?.data && Array.isArray(jobData.data)) {
@@ -65,13 +62,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
 
       const jobsWithIds = jobData.map((job: any) => ({
-        id: uuid.v4().toString(),
+        id: job.id ? job.id.toString() : uuid.v4().toString(),
         title: job.title || "No Title",
         company: job.company || "Unknown Company",
         salary: job.salary ? `$${job.salary}` : "Salary not disclosed",
         jobType: job.jobType || "Not specified",
         workModel: job.workModel || "Not specified",
         seniority: job.seniority || "Not specified",
+        description: job.description || "No description available",
+        location: job.location || "Location not specified"
       }));
 
       setJobs(jobsWithIds);
@@ -87,34 +86,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
- 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchJobs();
-  };
-
- 
   useEffect(() => {
     fetchJobs();
   }, []);
 
-  
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity 
           onPress={() => navigation.navigate('SavedJobs', { 
-            savedJobs: Array.from(savedJobs), 
-            jobs 
+            savedJobs: savedJobs.map(job => job.id), 
+            jobs: savedJobs 
           })}
           style={styles.headerButton}
         >
-          <Text style={styles.headerButtonText}>Saved ({savedJobs.size})</Text>
+          <Text style={styles.headerButtonText}>Saved ({savedJobs.length})</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, savedJobs, jobs]);
+  }, [navigation, savedJobs]);
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchJobs();
+  };
 
   const handleSearch = (text: string) => {
     setSearch(text);
@@ -126,23 +121,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     );
   };
 
-  
-  const toggleSaveJob = (jobId: string) => {
+  const toggleSaveJob = (job: Job) => {
     setSavedJobs(prev => {
-      const newSet = new Set(prev);
-      newSet.has(jobId) ? newSet.delete(jobId) : newSet.add(jobId);
-      return newSet;
+      const isAlreadySaved = prev.some(savedJob => savedJob.id === job.id);
+      if (isAlreadySaved) {
+        return prev.filter(savedJob => savedJob.id !== job.id);
+      } else {
+        return [...prev, job];
+      }
     });
   };
 
-  
+  const isJobSaved = (jobId: string) => {
+    return savedJobs.some(job => job.id === jobId);
+  };
+
   const handleApplyPress = (job: Job) => {
     setSelectedJob(job);
     setModalVisible(true);
   };
 
   const handleApplicationSubmit = () => {
-    
     if (!application.name || !application.email || !application.phone) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -154,7 +153,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
 
     if (!application.coverLetter.trim()) {
-      Alert.alert('Error', 'Please tell us why we should hire you');
+      Alert.alert('Error',);
       return;
     }
 
@@ -162,15 +161,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       'Application Submitted',
       `Your application for ${selectedJob?.title} at ${selectedJob?.company} has been submitted!`
     );
-    
+    setModalVisible(false);
+    setApplication({
+      name: '',
+      email: '',
+      phone: '',
+      coverLetter: ''
+    });
   };
 
-  
   if (loading && jobs.length === 0) {
     return <ActivityIndicator size="large" style={styles.loader} />;
   }
 
-  
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -184,7 +187,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       </View>
     );
   }
-
 
   if (jobs.length === 0) {
     return (
@@ -201,7 +203,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+  
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Button 
+        title="Dark Mode" 
+        onPress={toggleTheme} 
+        color={theme.colors.applyButton} 
+      />
       <TextInput
         style={styles.searchInput}
         placeholder="Search jobs..."
@@ -228,12 +236,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <TouchableOpacity 
                 style={[
                   styles.saveButton, 
-                  savedJobs.has(item.id) && styles.savedButton
+                  isJobSaved(item.id) && styles.savedButton
                 ]}
-                onPress={() => toggleSaveJob(item.id)}
+                onPress={() => toggleSaveJob(item)}
               >
                 <Text style={styles.saveButtonText}>
-                  {savedJobs.has(item.id) ? 'Saved' : 'Save'}
+                  {isJobSaved(item.id) ? 'Saved' : 'Save'}
                 </Text>
               </TouchableOpacity>
               
@@ -250,7 +258,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.emptyText}>No jobs match your search</Text>
         }
       />
-
 
       <Modal
         visible={isModalVisible}
@@ -285,13 +292,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               style={styles.input}
               placeholder="Phone * (11 digits)"
               keyboardType="phone-pad"
-              maxLength={11}  
+              maxLength={11}
               value={application.phone}
               onChangeText={(text) => {
-              const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 11);
-              setApplication({...application, phone: cleanedText});
-  }}
-/>
+                const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 11);
+                setApplication({...application, phone: cleanedText});
+              }}
+            />
             
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -311,19 +318,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
               
               <TouchableOpacity 
-               style={[styles.modalButton, styles.cancelButton]}
-               onPress={() => {
-               setModalVisible(false);
-               setApplication({
-               name: '',
-               email: '',
-               phone: '',
-              coverLetter: ''
-               });
-  }}
->
-  <Text style={styles.modalButtonText}>Cancel</Text>
-</TouchableOpacity>
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setModalVisible(false);
+                  setApplication({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    coverLetter: ''
+                  });
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -468,10 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     width: '90%',
-    maxWidth: 400,
-    marginBottom: 20, 
-    position: 'absolute', 
-    top: '10%', 
+    maxWidth: 400
   },
   modalTitle: {
     fontSize: 20,
@@ -521,7 +525,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16
   }
-
 });
 
 export default HomeScreen;

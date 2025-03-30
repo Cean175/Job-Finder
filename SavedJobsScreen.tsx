@@ -1,25 +1,34 @@
-import React from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  StyleSheet, 
-  TouchableOpacity,
-  Alert 
+import React, { useState } from 'react';
+import {View,Text,FlatList,StyleSheet,TouchableOpacity,Modal,TextInput,Alert,KeyboardAvoidingView,Platform
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList, Job } from './App';
+import { RootStackParamList } from './types';
 
-type SavedJobsScreenRouteProp = RouteProp<RootStackParamList, 'SavedJobs'>;
-
-interface SavedJobsScreenProps {
-  route: SavedJobsScreenRouteProp;
-  navigation: any; // Add navigation prop
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  salary: string;
+  jobType?: string;
+  workModel?: string;
+  seniority?: string;
 }
 
-const SavedJobsScreen: React.FC<SavedJobsScreenProps> = ({ route, navigation }) => {
+interface SavedJobsScreenProps {
+  route: RouteProp<RootStackParamList, 'SavedJobs'>;
+}
+
+const SavedJobsScreen: React.FC<SavedJobsScreenProps> = ({ route }) => {
   const { savedJobs, jobs } = route.params;
-  const [currentSavedJobs, setCurrentSavedJobs] = React.useState<string[]>(savedJobs);
+  const [currentSavedJobs, setCurrentSavedJobs] = useState<string[]>(savedJobs);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [application, setApplication] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    coverLetter: ''
+  });
 
   const savedJobsList = jobs.filter(job => currentSavedJobs.includes(job.id));
 
@@ -28,9 +37,40 @@ const SavedJobsScreen: React.FC<SavedJobsScreenProps> = ({ route, navigation }) 
   };
 
   const handleApplyPress = (job: Job) => {
-    navigation.navigate('Home', { 
-      screen: 'JobSearch',
-      params: { applyForJob: job }
+    setSelectedJob(job);
+    setModalVisible(true);
+  };
+
+  const handleApplicationSubmit = () => {
+   
+    if (!application.name || !application.email || !application.phone || !application.coverLetter) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    
+    if (!/^\S+@\S+\.\S+$/.test(application.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!/^\d{11}$/.test(application.phone)) {
+      Alert.alert('Error', 'Phone number must be exactly 11 digits');
+      return;
+    }
+
+    Alert.alert(
+      'Application Submitted',
+      `Your application for ${selectedJob?.title} at ${selectedJob?.company} has been submitted!`
+    );
+
+    // Close modal and reset form
+    setModalVisible(false);
+    setApplication({
+      name: '',
+      email: '',
+      phone: '',
+      coverLetter: ''
     });
   };
 
@@ -69,6 +109,87 @@ const SavedJobsScreen: React.FC<SavedJobsScreenProps> = ({ route, navigation }) 
           <Text style={styles.emptyText}>No saved jobs yet</Text>
         }
       />
+
+      {/* Application Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              Apply for {selectedJob?.title}
+            </Text>
+            <Text style={styles.modalSubtitle}>{selectedJob?.company}</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name *"
+              value={application.name}
+              onChangeText={(text) => setApplication({...application, name: text})}
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Email *"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={application.email}
+              onChangeText={(text) => setApplication({...application, email: text})}
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Phone * (11 digits)"
+              keyboardType="phone-pad"
+              maxLength={11}
+              value={application.phone}
+              onChangeText={(text) => {
+                const numbersOnly = text.replace(/[^0-9]/g, '');
+                setApplication({...application, phone: numbersOnly});
+              }}
+            />
+            
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Why should we hire you? *"
+              multiline
+              numberOfLines={4}
+              value={application.coverLetter}
+              onChangeText={(text) => setApplication({...application, coverLetter: text})}
+            />
+            
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleApplicationSubmit}
+              >
+                <Text style={styles.modalButtonText}>Submit</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setModalVisible(false);
+                  setApplication({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    coverLetter: ''
+                  });
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
@@ -140,6 +261,65 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: '#888'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    textAlign: 'center'
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 16
+  },
+  textArea: {
+    height: 120,
+    textAlignVertical: 'top'
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10
+  },
+  modalButton: {
+    padding: 12,
+    borderRadius: 6,
+    minWidth: 120,
+    alignItems: 'center'
+  },
+  submitButton: {
+    backgroundColor: '#4CAF50'
+  },
+  cancelButton: {
+    backgroundColor: '#f44336'
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16
   }
 });
 
